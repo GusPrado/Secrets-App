@@ -3,7 +3,7 @@ const express = require('express')
 const bodyParser = require('body-parser')
 const ejs = require('ejs')
 const mongoose = require('mongoose')
-const md5 = require('md5')
+const bcrypt = require('bcryptjs')
 
 const app = express()
 
@@ -40,22 +40,22 @@ app.get('/register', (req, res) => {
 app.post('/register', (req, res) => {
   let { username, password } = req.body
 
-  password = md5(password)
-
-  User.create({
-    email: username,
-    password
-  }, (err) => {
-    if (err) {
-      console.log(err)
-    } res.render('secrets')
-  })
+  bcrypt.genSalt(10, function(err, salt) {
+    bcrypt.hash(password, salt, function(err, hash) {
+      User.create({
+        email: username,
+        password: hash
+      }, (err) => {
+        if (err) {
+          console.log(err)
+        } res.render('secrets')
+      })
+    })
+  })  
 })
 
 app.post('/login', (req, res) => {
   let { username, password } = req.body
-
-  password = md5(password)
 
   User.findOne({
     email: username
@@ -64,9 +64,11 @@ app.post('/login', (req, res) => {
       console.log(err)
     } else {
       if (foundUser) {
-        if (foundUser.password === password) {
-          res.render('secrets')
-        }
+        bcrypt.compare(password, foundUser.password, function(err, result) {
+          if (result === true) {
+            res.render('secrets')
+          }
+        })    
       }
     }
   })
